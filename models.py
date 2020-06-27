@@ -131,14 +131,71 @@ class Message(_Model):
 
     def __init__(self):
         super(Message, self).__init__()
-        # Dopisać atrybuty do konstruktora
+        self.from_id = ""
+        self.to_id = ""
+        self.text = ""
+        self.creation_date = ""
 
     @classmethod
-    def _create_object(cls, param1, param2):  # zamień parametry na konkretne kolumny!
-        raise NotImplemented  # Tutaj tworzycie obiekt jak w klasie User
+    def _create_object(cls, from_id, to_id, text, creation_date, id=-1):
+        message = Message()
+        message.from_id = from_id
+        message.to_id = to_id
+        message.text = text
+        message.creation_date = creation_date
+        return message
 
     def save(self, cursor):
-        raise NotImplemented  # Zapis lub aktualizacja recordów w bazie danych!
+        if self._id == -1:
+            sql = """INSERT INTO messages(from_id, to_id, text, creation_date) VALUES(%s, %s, %s, NOW()) RETURNING id"""
+            values = (self.from_id, self.to_id, self.text)
+            cursor.execute(sql, values)
+            self._id = cursor.fetchone()[0]
+            return True
+        else:
+            sql = """UPDATE messages SET from_id=%s, to_id=%s, text=%s WHERE id=%s"""
+            values = (self.from_id, self.to_id, self.text, self._id)
+            cursor.execute(sql, values)
+            return True
+
+    @classmethod
+    def load_message_by_id(cls, cursor, message_id):
+        sql = "SELECT id, from_id, to_id, text, creation_date FROM Messages WHERE id=%s"
+        cursor.execute(sql, (message_id,))
+        record = cursor.fetchone()
+        if record:
+            return cls._create_object(**record)
+        return None
+
+    @classmethod
+    def load_all_messages(cls, cursor):
+        sql = "SELECT id, from_id, to_id, text, creation_date FROM Messages"
+        cursor.execiute(sql)
+        messages = []
+        for data in cursor.fetchall():
+            loaded_message = Message()
+            loaded_message.__id = data[0]
+            loaded_message.from_id = data[1]
+            loaded_message.to_id = data[2]
+            loaded_message.text = data[3]
+            loaded_message.creation_date = data[4]
+            messages.append(loaded_message)
+        return messages
+
+    @classmethod
+    def load_all_messages_for_user(cls, cursor, to_id):
+        sql = "SELECT id, from_id, to_id, text, creation_date FROM Messages WHERE to_id=%s"
+        cursor.execute(sql, (to_id, ))
+        record = []
+        for data in cursor.fetchall():
+            loaded_msg = Message()
+            loaded_msg.__id = data[0]
+            loaded_msg.from_id = data[1]
+            loaded_msg.to_id = data[2]
+            loaded_msg.text = data[3]
+            loaded_msg.creation_date = data[4]
+            record.append(loaded_msg)
+        return record
 
 
 if __name__ == '__main__':
